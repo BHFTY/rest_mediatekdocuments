@@ -97,6 +97,8 @@ class MyAccessBDD extends AccessBDD {
      */	
     protected function traitementUpdate(string $table, ?string $id, ?array $champs) : ?int{
         switch($table){
+            case "detailcommande":
+                return $this->updateDetailsCommande($champs);
             case "" :
                 // return $this->uneFonction(parametres);
             default:                    
@@ -114,6 +116,8 @@ class MyAccessBDD extends AccessBDD {
      */	
     protected function traitementDelete(string $table, ?array $champs) : ?int{
         switch($table){
+            case "detailcommande":
+                return $this->deleteDetailsCommande($champs);
             case "" :
                 // return $this->uneFonction(parametres);
             default:                    
@@ -340,9 +344,8 @@ class MyAccessBDD extends AccessBDD {
         return $this->conn->queryBDD($requete, $champsNecessaire);
     }
     
-    public function insertDetailCommande(?bool $champs): ?bool {
+     public function insertDetailCommande(?array $champs): ?int {
     
-    $champs = json_decode(file_get_contents("php://input"), true);
     if ($champs === null || 
         !isset($champs['IdCommande']) || 
         !isset($champs['IdCommandeDocument']) || 
@@ -352,7 +355,8 @@ class MyAccessBDD extends AccessBDD {
         !isset($champs['IdLivreDvd']) || 
         !isset($champs['Etape'])) {
        
-        return false;
+        var_dump($champs);
+        return 0;
     }
     $requeteCommande = "INSERT INTO commande (id, dateCommande, montant) VALUES (:id, :dateCommande, :montant)";
     $paramsCommande = [
@@ -369,11 +373,6 @@ class MyAccessBDD extends AccessBDD {
         'nbExemplaire' => $champs['NbExemplaire'],
         'idLivreDvd' => $champs['IdLivreDvd']
     ];
-    if ($champs['IdCommandeDocument'] === $champs['IdCommande']) {
-        $paramsCommandeDocument['id'] = $champs['IdCommandeDocument'];  
-    } else {
-    return false;
-    }
     $resultCommandeDocument = $this->conn->updateBDD($requeteCommandeDocument, $paramsCommandeDocument);
     
     $requeteSuivi = "INSERT INTO suivi (idCommandeDocument, etape) VALUES (:idCommandeDocument, :etape)";
@@ -382,11 +381,87 @@ class MyAccessBDD extends AccessBDD {
         'etape' => 'En cours'
     ];
     $resultSuivi = $this->conn->updateBDD($requeteSuivi, $paramsSuivi);
-
-    return ($resultCommande === 1 && $resultCommandeDocument === 1 && $resultSuivi === 1);
+return $resultCommande + $resultCommandeDocument + $resultSuivi;
+}
+    private function updateDetailsCommande(?array $champs) : ?int {
+    if ($champs === null || !isset($champs['IdCommande'])) {
+        return 0; 
+    }
+    $totalLignesImpactees = 0;
+    if (isset($champs['DateCommande']) || isset($champs['Montant'])) {
+        $requeteCommande = "UPDATE commande SET ";
+        $paramsCommande = ['id' => $champs['IdCommande']];
+        if (isset($champs['DateCommande'])) {
+            $requeteCommande .= "dateCommande = :dateCommande";
+            $paramsCommande['dateCommande'] = $champs['DateCommande'];
+        }
+        if (isset($champs['Montant'])) {
+            $requeteCommande .= (isset($champs['DateCommande']) ? ", " : "") . "montant = :montant";
+            $paramsCommande['montant'] = $champs['Montant'];
+        }
+        $requeteCommande .= " WHERE id = :id";
+        $resultCommande = $this->conn->updateBDD($requeteCommande, $paramsCommande);
+        $totalLignesImpactees += $resultCommande ?? 0;
+    }
+    if (isset($champs['NbExemplaire']) || isset($champs['IdLivreDvd'])) {
+        $requeteCommandeDocument = "UPDATE commandedocument SET ";
+        $paramsCommandeDocument = ['id' => $champs['IdCommandeDocument']];
+        if (isset($champs['NbExemplaire'])) {
+            $requeteCommandeDocument .= "nbExemplaire = :nbExemplaire";
+            $paramsCommandeDocument['nbExemplaire'] = $champs['NbExemplaire'];
+        }
+        if (isset($champs['IdLivreDvd'])) {
+            $requeteCommandeDocument .= (isset($champs['NbExemplaire']) ? ", " : "") . "idLivreDvd = :idLivreDvd";
+            $paramsCommandeDocument['idLivreDvd'] = $champs['IdLivreDvd'];
+        }
+        $requeteCommandeDocument .= " WHERE id = :id";
+        $resultCommandeDocument = $this->conn->updateBDD($requeteCommandeDocument, $paramsCommandeDocument);
+        $totalLignesImpactees += $resultCommandeDocument ?? 0;
+    }
+    if (isset($champs['Etape'])) {
+        $requeteSuivi = "UPDATE suivi SET etape = :etape WHERE idCommandeDocument = :idCommandeDocument";
+        $paramsSuivi = [
+            'etape' => $champs['Etape'],
+            'idCommandeDocument' => $champs['IdCommandeDocument']
+        ];
+        $resultSuivi = $this->conn->updateBDD($requeteSuivi, $paramsSuivi);
+        $totalLignesImpactees += $resultSuivi ?? 0;
+    }
+    return $totalLignesImpactees > 0 ? $totalLignesImpactees : 0;
+    }
+  
+    private function deleteDetailsCommande(?array $champs) : ?int {
+     
+        if ($champs === null || 
+        !isset($champs['IdCommande'])) {
+        return 0; 
+    }
+        
+         
+        $requeteSuivi = "DELETE FROM suivi WHERE idCommandeDocument = :idCommandeDocument";
+        $paramsSuivi = [
+           'idCommandeDocument' => $champs['IdCommande']
+        ];
+        $resultSuivi = $this->conn->updateBDD($requeteSuivi, $paramsSuivi);
+        
+         $requeteCommandeDocument = "DELETE FROM commandedocument WHERE id = :id";
+        $paramsCommandeDocument = [
+           'id' => $champs['IdCommande']
+        ];
+        $resultCommandeDocument = $this->conn->updateBDD($requeteCommandeDocument, $paramsCommandeDocument);
+        
+        $requeteCommande = "DELETE FROM commande WHERE id = :id";
+        $paramsCommande = [
+           'id' => $champs['IdCommande']
+        ];
+        $resultCommande = $this->conn->updateBDD($requeteCommande, $paramsCommande);
+            
+        return $resultSuivi + $resultCommandeDocument + $resultCommande;
+    
+    } 
 }
     
-}
+
     
     
     
