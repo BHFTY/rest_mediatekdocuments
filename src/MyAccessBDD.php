@@ -583,7 +583,7 @@ if ($champs === null ||
      
         if ($champs === null || 
         !isset($champs['IdCommande'])) {
-        return 0; 
+        return 0;
     }
         
          
