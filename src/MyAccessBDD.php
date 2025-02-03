@@ -11,7 +11,7 @@ include_once("AccessBDD.php");
  * - appeler la nouvelle fonction dans ce 'case'
  */
 class MyAccessBDD extends AccessBDD {
-	    
+
     /**
      * constructeur qui appelle celui de la classe mère
      */
@@ -32,6 +32,24 @@ class MyAccessBDD extends AccessBDD {
      */	
     protected function traitementSelect(string $table, ?array $champs) : ?array{
         switch($table){  
+            case "detailcommande" :
+                return $this->selectDetailCommande($champs);
+                
+            case "detailabonnement" :
+        return $this->selectDetailAbonnement();
+            
+            case "commandedocument" :
+            if (isset($champs['idLivreDvd'])) {
+                return $this->selectCommandesDocument($champs['idLivreDvd']);
+            }
+            return $this->selectAllCommandedocuments();
+            
+            case "suivi":
+                return $this->selectAllSuivi();
+                
+            case "commande": 
+                return $this->selectAllCommandes();
+                
             case "livre" :
                 return $this->selectAllLivres();
             case "dvd" :
@@ -40,31 +58,32 @@ class MyAccessBDD extends AccessBDD {
                 return $this->selectAllRevues();
             case "exemplaire" :
                 return $this->selectExemplairesRevue($champs);
+            case "maxcommande": 
+                return $this->selectMaxCommande();
+            case "maxlivre": 
+                return $this->selectMaxLivre();
+            case "maxdvd": 
+                return $this->selectMaxDvd();
+            case "maxrevue": 
+                return $this->selectMaxRevue();
             case "genre" :
             case "public" :
             case "rayon" :
             case "etat" :
-            case "detailcommande" :
-                return $this->selectDetailCommande($champs);
-            case "commandedocument" :
-                return $this->selectAllCommandedocuments();
-            case "suivi":
-                return $this->selectAllSuivi();
-            case "commande": 
-                return $this->selectAllCommandes();
-                
                 // select portant sur une table contenant juste id et libelle
                 return $this->selectTableSimple($table);
             case "exemplaire" :
                 return $this->selectExemplairesRevue($champs['id']);
             case "detailcommande" :
                 return $this->selectDetailCommande($champs['idLivreDvd']);
+            case "detailabonnement" :
+                return $this->selectDetailAbonnement($champs['idRevue']);
             case "" :
-                
                 // return $this->uneFonction(parametres);
             default:
                 // cas général
                 return $this->selectTuplesOneTable($table, $champs);
+            
         }	
     }
 
@@ -76,9 +95,11 @@ class MyAccessBDD extends AccessBDD {
      * @override
      */	
     protected function traitementInsert(string $table, ?array $champs) : ?int{
-        switch($table){
-             case "detailcommande":
+        switch($table){ 
+            case "detailcommande":
                 return $this->insertDetailCommande($champs);
+            case "detailabonnement":
+                return $this->insertDetailAbonnement($champs);
             case "" :
                 // return $this->uneFonction(parametres);
             default:                    
@@ -86,7 +107,7 @@ class MyAccessBDD extends AccessBDD {
                 return $this->insertOneTupleOneTable($table, $champs);	
         }
     }
-    
+
     /**
      * demande de modification (update)
      * @param string $table
@@ -106,7 +127,7 @@ class MyAccessBDD extends AccessBDD {
                 return $this->updateOneTupleOneTable($table, $id, $champs);
         }	
     }  
-    
+
     /**
      * demande de suppression (delete)
      * @param string $table
@@ -118,6 +139,8 @@ class MyAccessBDD extends AccessBDD {
         switch($table){
             case "detailcommande":
                 return $this->deleteDetailsCommande($champs);
+            case "detailabonnement":
+                return $this->deleteDetailAbonnement($champs);
             case "" :
                 // return $this->uneFonction(parametres);
             default:                    
@@ -125,7 +148,7 @@ class MyAccessBDD extends AccessBDD {
                 return $this->deleteTuplesOneTable($table, $champs);	
         }
     }	    
-        
+
     /**
      * récupère les tuples d'une seule table
      * @param string $table
@@ -144,7 +167,7 @@ class MyAccessBDD extends AccessBDD {
                 $requete .= "$key=:$key and ";
             }
             // (enlève le dernier and)
-            $requete = substr($requete, 0, strlen($requete)-5);	          
+            $requete = substr($requete, 0, strlen($requete)-5);	 
             return $this->conn->queryBDD($requete, $champs);
         }
     }	
@@ -201,7 +224,7 @@ class MyAccessBDD extends AccessBDD {
         $requete .= " where id=:id;";		
         return $this->conn->updateBDD($requete, $champs);	        
     }
-    
+
     /**
      * demande de suppression (delete) d'un ou plusieurs tuples dans une table
      * @param string $table
@@ -221,7 +244,7 @@ class MyAccessBDD extends AccessBDD {
         $requete = substr($requete, 0, strlen($requete)-5);   
         return $this->conn->updateBDD($requete, $champs);	        
     }
- 
+
     /**
      * récupère toutes les lignes d'une table simple (qui contient juste id et libelle)
      * @param string $table
@@ -231,7 +254,7 @@ class MyAccessBDD extends AccessBDD {
         $requete = "select * from $table order by libelle;";		
         return $this->conn->queryBDD($requete);	    
     }
-    
+
     /**
      * récupère toutes les lignes de la table Livre et les tables associées
      * @return array|null
@@ -279,7 +302,7 @@ class MyAccessBDD extends AccessBDD {
 
     /**
      * récupère tous les exemplaires d'une revue
-     * @param array|null $champs 
+     * @param array\null $champs 
      * @return array|null
      */
     private function selectExemplairesRevue(?array $champs) : ?array{
@@ -293,30 +316,75 @@ class MyAccessBDD extends AccessBDD {
         $requete = "Select e.id, e.numero, e.dateAchat, e.photo, e.idEtat ";
         $requete .= "from exemplaire e join document d on e.id=d.id ";
         $requete .= "where e.id = :id ";
-        $requete .= "order by e.dateAchat DESC";
+        $requete .= "order by e.dateAchat DESC";		
         return $this->conn->queryBDD($requete, $champNecessaire);
     }	
     
+    public function selectMaxCommande() {
+        $req = "Select MAX(id) AS id FROM commande";
+        return $this->conn->queryBDD($req);
+        
+    }
+
+    public function selectMaxLivre() {
+        $req = "Select MAX(id) AS id FROM livre";
+        return $this->conn->queryBDD($req);
+        
+    }
+    
+    public function selectMaxDvd() {
+        $req = "Select MAX(id) AS id FROM dvd";
+        return $this->conn->queryBDD($req);
+        
+    }
+    
+    public function selectMaxRevue() {
+        $req = "Select MAX(id) AS id FROM revue";
+        return $this->conn->queryBDD($req);
+        
+    }
+
     /**
     * Récupère toutes les commandes de livres
     * @return array|null
     */
-    private function selectAllCommandes() : ?array {
-        $requete = " select c.id, c.dateCommande, c.montant ";
-        $requete .= "from commande c ";
-        $requete .= "order by c.dateCommande desc";
-    return $this->conn->queryBDD($requete);
+   public function selectCommandesDocument($idLivreDvd){
+        $param = array(
+                "idLivreDvd" => $idLivreDvd
+        );
+        $req = "Select cd.id, c.dateCommande, c.montant, cd.nbExemplaire, cd.idLivreDvd, ";
+        $req .= "cd.idsuivi, s.etat ";
+        $req .= "from commandedocument cd join commande c on cd.id=c.id ";
+        $req .= "join suivi s on cd.idsuivi=s.id ";
+        $req .= "where cd.idLivreDvd = :idLivreDvd ";
+        $req .= "order by c.dateCommande DESC";	
+        return $this->conn->queryBDD($req, $param);
+    }
+
+
+    
+   private function selectAllCommandedocuments(?int $idLivreDvd = null) : ?array {
+    $requete = "SELECT cd.id, c.dateCommande, c.montant, cd.nbExemplaire, cd.idLivreDvd, cd.idsuivi, s.etat ";
+    $requete .= "FROM commande c ";
+    $requete .= "LEFT JOIN commandedocument cd ON c.id = cd.id ";
+    $requete .= "LEFT JOIN suivi s ON cd.idsuivi = s.id ";
+    
+    // Si un ID de livre est fourni, ajoutez une clause WHERE
+    if ($idLivreDvd !== null) {
+        $requete .= "WHERE cd.idLivreDvd = :idLivreDvd ";
     }
     
-    private function selectAllCommandedocuments() : ?array {
-        $requete = "select cd.id, cd.nbExemplaire, cd.idLivreDvd ";
-        $requete .= "from commandedocument as cd ";
-        $requete .= "join commande AS c ON cd.id = c.id ";
-        $requete .= "order by cd.id desc ";
-        
-        var_dump($requete);
-        return $this->conn->queryBDD($requete);
+    $requete .= "ORDER BY c.dateCommande DESC"; 
+
+    $params = [];
+    if ($idLivreDvd !== null) {
+        $params['idLivreDvd'] = $idLivreDvd;
     }
+
+    return $this->conn->queryBDD($requete, $params);
+}
+ 
+
     
    private function selectAllSuivi() : ?array {
     $requete = "SELECT s.id, s.idCommandeDocument, s.etape ";
@@ -381,7 +449,8 @@ class MyAccessBDD extends AccessBDD {
         'etape' => 'En cours'
     ];
     $resultSuivi = $this->conn->updateBDD($requeteSuivi, $paramsSuivi);
-return $resultCommande + $resultCommandeDocument + $resultSuivi;
+
+    return $resultCommande + $resultCommandeDocument + $resultSuivi;
 }
     private function updateDetailsCommande(?array $champs) : ?int {
     if ($champs === null || !isset($champs['IdCommande'])) {
@@ -459,10 +528,81 @@ return $resultCommande + $resultCommandeDocument + $resultSuivi;
         return $resultSuivi + $resultCommandeDocument + $resultCommande;
     
     } 
+    
+   private function selectDetailAbonnement(?array $champs) : ?array {
+    $param = array(
+        "idRevue" => $idRevue
+    );
+    $req = "SELECT a.id, c.dateCommande, c.montant, a.dateFinAbonnement, a.idRevue";
+    $req .="from abonnement a join commande c on a.id = c.id ;
+    $req .='where a.idRevue = :idRevue "; 
+    $req .= "order by c.dateCommande DESC";	
+    return $this->conn->queryBDD($req, $param);
+}
+
+
+
+    public function insertDetailAbonnement(?array $champs): ?int {
+if ($champs === null || 
+        !isset($champs['IdCommande']) || 
+        !isset($champs['IdRevue']) ||
+        !isset($champs['IdAbonnement']) ||
+        !isset($champs['DateCommande']) || 
+        !isset($champs['Montant']) || 
+        !isset($champs['DateFinAbonnement'])) {
+        
+        return 0;
+    }
+    if ($champs['IdCommande'] !== $champs['IdAbonnement']) {
+        return null;
+    }
+    $requeteCommande = "INSERT INTO commande (id, dateCommande, montant) VALUES (:id, :dateCommande, :montant) ";
+    $paramsCommande = [
+        'id' => $champs['IdCommande'],
+        'dateCommande' => $champs['DateCommande'],
+        'montant' => $champs['Montant']
+    ];
+    $resultCommande = $this->conn->updateBDD($requeteCommande, $paramsCommande);
+    $requeteAbonnement = "INSERT INTO abonnement (id, dateFinAbonnement, idRevue) VALUES (:id, :dateFinAbonnement, :idRevue) ";
+    $paramsAbonnement = [
+        'id' => $champs['IdAbonnement'],  
+        'dateFinAbonnement' => $champs['DateFinAbonnement'],
+        'idRevue' => $champs['IdRevue']
+    ];
+    $resultAbonnement = $this->conn->updateBDD($requeteAbonnement, $paramsAbonnement);
+    return $resultCommande + $resultAbonnement ;
+    }
+    
+    private function ParutionDansAbonnement(string $dateCommande, string $dateFinAbonnement, string $dateParution): bool {
+    $dateCommandeObj = new DateTime($dateCommande);
+    $dateFinAbonnementObj = new DateTime($dateFinAbonnement);
+    $dateParutionObj = new DateTime($dateParution);
+    return $dateParutionObj >= $dateCommandeObj && $dateParutionObj <= $dateFinAbonnementObj;
+    }
+    private function deleteDetailAbonnement(?array $champs) : ?int {
+     
+        if ($champs === null || 
+        !isset($champs['IdCommande'])) {
+        return 0; 
+    }
+        
+         
+        $requeteAbonnement = "DELETE FROM abonnement WHERE id = :id";
+        $paramsAbonnement = [
+           'id' => $champs['IdAbonnement']
+        ];
+        $resultAbonnement = $this->conn->updateBDD($requeteAbonnement, $paramsAbonnement);
+        
+         $requeteCommande = "DELETE FROM commande WHERE id = :id";
+        $paramsCommande = [
+           'id' => $champs['IdCommande']
+        ];
+        $resultCommande = $this->conn->updateBDD($requeteCommande, $paramsCommande);
+        
+            
+        return $resultAbonnement + $resultCommande ;
+    }
+    
+    
 }
     
-
-    
-    
-    
-
