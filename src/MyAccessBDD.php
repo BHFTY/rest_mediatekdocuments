@@ -36,14 +36,11 @@ class MyAccessBDD extends AccessBDD {
                 return $this->selectDetailCommande($champs);
                 
             case "detailabonnement" :
-        return $this->selectDetailAbonnement();
+                return $this->selectDetailAbonnement();
             
             case "commandedocument" :
-            if (isset($champs['idLivreDvd'])) {
                 return $this->selectCommandesDocument($champs['idLivreDvd']);
-            }
-            return $this->selectAllCommandedocuments();
-            
+              
             case "suivi":
                 return $this->selectAllSuivi();
                 
@@ -52,20 +49,31 @@ class MyAccessBDD extends AccessBDD {
                 
             case "livre" :
                 return $this->selectAllLivres();
+                
             case "dvd" :
                 return $this->selectAllDvd();
+                
             case "revue" :
                 return $this->selectAllRevues();
+                
             case "exemplaire" :
                 return $this->selectExemplairesRevue($champs);
+                
             case "maxcommande": 
                 return $this->selectMaxCommande();
+                
             case "maxlivre": 
                 return $this->selectMaxLivre();
+                
             case "maxdvd": 
                 return $this->selectMaxDvd();
+                
             case "maxrevue": 
                 return $this->selectMaxRevue();
+                
+            case "utilisateur" :
+                return $this->selectUtilisateur($champs);
+       
             case "genre" :
             case "public" :
             case "rayon" :
@@ -78,6 +86,10 @@ class MyAccessBDD extends AccessBDD {
                 return $this->selectDetailCommande($champs['idLivreDvd']);
             case "detailabonnement" :
                 return $this->selectDetailAbonnement($champs['idRevue']);
+            case "utilisateur" :
+                return $this->selectAllUtilisateurs($champs['Pseudo'], $champs['Password']);
+            case "service" :
+                return $this->selectServiceDeUtilisateur($champs['Pseudo']);
             case "" :
                 // return $this->uneFonction(parametres);
             default:
@@ -120,6 +132,8 @@ class MyAccessBDD extends AccessBDD {
         switch($table){
             case "detailcommande":
                 return $this->updateDetailsCommande($champs);
+             case "detailabonnement":
+                return $this->updateDetailAbonnement($champs);
             case "" :
                 // return $this->uneFonction(parametres);
             default:                    
@@ -363,7 +377,7 @@ class MyAccessBDD extends AccessBDD {
 
 
     
-   private function selectAllCommandedocuments(?int $idLivreDvd = null) : ?array {
+   private function selectAllCommandes(?int $idLivreDvd = null) : ?array {
     $requete = "SELECT cd.id, c.dateCommande, c.montant, cd.nbExemplaire, cd.idLivreDvd, cd.idsuivi, s.etat ";
     $requete .= "FROM commande c ";
     $requete .= "LEFT JOIN commandedocument cd ON c.id = cd.id ";
@@ -601,6 +615,28 @@ if ($champs === null ||
         
             
         return $resultAbonnement + $resultCommande ;
+    }
+    
+   /**
+     * récupération d'un utilisateur si les données correspondent
+     *
+     * @param [type] $champs
+     * @return ligne de la requete
+     */
+    public function selectUtilisateur($champs)
+    {
+        $param = array(
+            "mail" => $champs["mail"],
+            "password" => $champs["password"]
+        );
+        $req = "Select u.id, u.nom, u.prenom, u.mail, u.idservice, s.libelle as service ";
+        $req .= "from utilisateur u join service s on u.idservice=s.id ";
+        $req .= "where u.mail = :mail ";
+        $req .= "and u.password = :password ";
+        $req .= "or u.nom = :mail ";
+        $req .= "and u.password = :password";
+        return $this->conn->queryBDD($req, $param);
+        
     }
     
     
